@@ -197,10 +197,10 @@ class XpressSolver(Solver):
 
     def step1(self, state):
         obj = np.zeros(self.num_agents)
-        price = np.zeros((self.num_agents, self.num_commodities) 
-        waste_price = np.zeros((self.num_agents, self.num_commodities) 
-        inv = np.zeros((self.num_agents, self.num_commodities) 
-        waste_inv = np.zeros((self.num_agents, self.num_commodities) 
+        price = np.zeros((self.num_agents, self.num_commodities)) 
+        waste_price = np.zeros((self.num_agents, self.num_commodities)) 
+        inv = np.zeros((self.num_agents, self.num_commodities))
+        waste_inv = np.zeros((self.num_agents, self.num_commodities))
         for n in range(self.num_agents):
             o, e, ew, i, iw = self.solve_seller(state[n], n)
             price[n,:] = e
@@ -212,9 +212,9 @@ class XpressSolver(Solver):
     
     def step2(self, state):
         obj = np.zeros(self.num_commodities)
-        quantity = np.zeros(self.num_agents, self.num_agents, self.num_commodities)
-        quantityw = np.zeros(self.num_agents, self.num_agents, self.num_commodities)
-        quantitys = np.zeros(self.num_agents, self.num_commodities) 
+        quantity = np.zeros((self.num_agents, self.num_agents, self.num_commodities))
+        quantityw = np.zeros((self.num_agents, self.num_agents, self.num_commodities))
+        quantitys = np.zeros((self.num_agents, self.num_commodities))
         for n in range(self.num_agents):
             o, q, qw, qs = self.solve_buyer(state[n], n)
             quantity[n, :] = q
@@ -225,9 +225,9 @@ class XpressSolver(Solver):
     
     def step3(self, state):
         obj = np.zeros(self.num_commodities)
-        eco_utility = np.zeros(self.num_agents, self.num_commodities) 
-        trans_quan = np.zeros(self.num_agents, self.num_commodities) 
-        waste_inv = np.zeros(self.num_agents, self.num_commodities) 
+        eco_utility = np.zeros((self.num_agents, self.num_commodities)) 
+        trans_quan = np.zeros((self.num_agents, self.num_commodities))
+        waste_inv = np.zeros((self.num_agents, self.num_commodities))
         for n in range(self.num_agents):
             o, uec, utx, rcy_winv = self.solve_transformation(state[n], n)
             eco_utility[n, :] = uec
@@ -236,7 +236,7 @@ class XpressSolver(Solver):
             obj[n] = o
         return obj, eco_utility, trans_quan, waste_inv
 
-def get_xpress_test_params(num_agents):
+def get_xpress_test_params(num_agents, num_commodities):
     buyer_params = {}
     seller_params = {}
     trans_params = {}
@@ -269,7 +269,7 @@ def test_xpress_solver():
     #num_seller = 2
     num_agents = 2
     num_commodities = 2
-    seller_params, buyer_params, trans_params = get_xpress_test_params(num_agents)
+    seller_params, buyer_params, trans_params = get_xpress_test_params(num_agents, num_commodities)
     solver = XpressSolver(num_agents, num_commodities)
     solver.solve_seller(seller_params, 0)
     solver.solve_buyer(buyer_params, 0)
