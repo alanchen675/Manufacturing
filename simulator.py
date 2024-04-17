@@ -19,6 +19,9 @@ buyer_action_attributes = ['buyer_spot_qty', 'buyer_exchange_qty']
 
 
 class Manufacturing_Simulator:
+    """
+    Environment class for the manufacturing problem
+    """
     def __init__(self, agents=2, num_commodities=4, decay_factor=0.1,\
             coefs=[300,400,10,20], T=2048, history_length=32, max_timesteps_per_episode=200):
         self.agents = agents
@@ -184,6 +187,24 @@ class Manufacturing_Simulator:
 
         return next_obs, np.array(seller_rewards), done, {'buyer_reward':np.array(buyer_rewards),\
                 'total_reward':np.array(total_rewards)}
+
+    def step_sell(self):
+        """
+        Step function for the selling step
+        """
+        pass
+
+    def step_buy(self):
+        """
+        Step function for the buying step
+        """
+        pass
+
+    def step_trans(self):
+        """
+        Step function for the transformation step
+        """
+        pass
 
     ## TODO-Revise
     def reset(self):

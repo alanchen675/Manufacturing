@@ -8,43 +8,27 @@ import numpy as np
 
 
 class PPOAgent:
-    def __init__(self, hyper_para, n_observations, n_actions, hidden_dims=128):
-        self._init_hyperparameter()
+    """
+    Agent model for the problem
+    """
+    def __init__(self, n_observations, n_actions, chkpt_dir, hidden_dims=128):
         self.actor = Actor(n_observations, n_actions, hidden_dims)
         self.critic = Critic(n_observations, n_actions, hidden_dims)
         self.actor_optim = optim.Adam(self.actor.parameters(), lr=self.lr)
-        self.actor_optim = optim.Adam(self.critic.parameters(), lr=self.lr)
+        self.critic_optim = optim.Adam(self.critic.parameters(), lr=self.lr)
         self.cov_var = torch.full(size=(n_actions,), fill_value=0.5)
         self.cov_mat = torch.diag(self.cov_var)
+        self.chkpt_dir = chkpt_dir
 
-    def _init_hyperparameters(self):
-        self.timesteps_per_batch = 2048            # timesteps per batch
-        self.max_timesteps_per_episode = 200      # timesteps per episode
-        self.gamma = 0.99 #discount factor
-        self.n_updates_per_iteration = 10
-        self.lr = 3e-4
-        self.clip = 0.2
-        self.save_freq = 1
-        self.seed = None
-        for param, val in self.hyperparameters.items():
-            exec('self.' + param + ' = ' + str(val))
-            # Sets the seed if specified
-        if self.seed != None:
-            # Check if our seed is valid first
-            assert(type(self.seed) == int)
-            # Set the seed
-            torch.manual_seed(self.seed)
-            print(f"Successfully set seed to {self.seed}")
-
-    def save_model(self):
+    def save_model(self, filename):
         if not os.path.exists(self.chkpt_dir):
             os.mkdir(self.chkpt_dir)
-        torch.save(self.actor.state_dict(), f'{self.chkpt_dir}/actor.pth')
-        torch.save(self.critic.state_dict(), f'{self.chkpt_dir}/critic.pth')
+        torch.save(self.actor.state_dict(), f'{self.chkpt_dir}/{filename}')
+        torch.save(self.critic.state_dict(), f'{self.chkpt_dir}/{filename}')
 
-    def load_model(self):
-        self.actor.load_state_dict(torch.load(f'{self.chkpt_dir}/actor.pth'))
-        self.critic.load_state_dict(torch.load(f'{self.chkpt_dir}/critic.pth'))
+    def load_model(self, filename):
+        self.actor.load_state_dict(torch.load(f'{self.chkpt_dir}/{filename}'))
+        self.critic.load_state_dict(torch.load(f'{self.chkpt_dir}/{filename}'))
 
     def get_action(self, obs):
         """
@@ -58,6 +42,37 @@ class PPOAgent:
   
         # Return the sampled action and the log prob of that action
         return action, log_prob
+
+    def evaluate(self, batch_obs, batch_acts):
+        V = self.critic(batch_obs).squeeze()
+        mean = self.actor(batch_obs)
+        dist = MultivariateNormal(mean, self.cov_mat)
+        log_probs = dist.log_prob(batch_acts)
+        return V, log_probs
+
+    def learn(self, batch_obs, batch_acts, batch_log_probs, batch_rtgs, n_itr):
+        """
+        Learning for an agent
+        """
+        V, _ = self.evaluate(batch_obs, batch_acts)
+        A_k = batch_rtgs - V.detach()
+        A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
+
+        for _ in range(n_itr):
+            V, curr_log_probs = self.evaluate(batch_obs, batch_acts)
+            ratios = torch.exp(curr_log_probs - batch_log_probs)
+            surr1 = ratios * A_k
+            surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
+            actor_loss = (-torch.min(surr1, surr2)).mean()
+            critic_loss = nn.MSELoss()(V, batch_rtgs)
+            self.actor_optim.zero_grad()
+            actor_loss.backward(retain_graph=True)
+            self.actor_optim.step()
+            self.critic_optim.zero_grad()
+            critic_loss.backward()
+            self.critic_optim.step()
+            #self.logger['actor_losses'][f'agent{ag+1}'].append(actor_loss.detach())
+        #self._log_summary(ag)
 
 class Critic(nn.Module):
     def __init__(self, n_observations, n_actions, hidden_dims=128):
