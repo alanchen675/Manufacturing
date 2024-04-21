@@ -64,6 +64,9 @@ class AgentPool:
     def evaluate(self, batch_obs, batch_acts, agent_type, agent_id):
         return self.agent_pools[agent_type][agent_id].evaluate(batch_obs, batch_acts)
 
+    def learn(self, batch_obs, batch_acts, batch_logprobs, batch_rtgs, agent_type, agent_id, n_itr):
+        self.agent_pools[agent_type][agent_id].learn(batch_obs, batch_acts, batch_logprobs, batch_rtgs, n_itr) 
+
     def save_model(self, agent_type, agent_id, filename):
         self.agent_pools[agent_type][agent_id].save_model(filename)
 

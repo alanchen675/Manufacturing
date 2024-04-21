@@ -78,8 +78,8 @@ class Trainer:
     def rollout(self):
         # Let the following information be a list of three elements and each element can be the tensors for
         # seller, buyer, and transformation
-        batch_obs = [[] for _ in len(stages)]             # batch observations. 
-        batch_log_probs = [[] for _ in len(stages)]       # log probs of each action
+        batch_obs = [[] for _ in len(stages)]            # batch observations. 
+        batch_log_probs = [[] for _ in len(stages)]      # log probs of each action
         batch_acts = [[] for _ in len(stages)]           # batch actions
         batch_rews = [[] for _ in len(stages)]           # batch rewards
         batch_rtgs = [[] for _ in len(stages)]           # batch rewards-to-go
@@ -102,10 +102,14 @@ class Trainer:
                 # Collect seller observation
                 # Append the seller_obs to the proper slot
                 batch_obs[SELLER].append(obs_s)
+
                 # Get seller action
                 action_s, log_prob_s = self.agent_pool.get_action(obs_s, SELLER)
+                # Shape: (num_sellers, seller_action_size)
+
                 # Send seller action and get buyer observation
                 obs_b, rew_s, done_s, _ = self.step_seller(action_s)
+
                 # Collect seller reward, action, and log prob
                 ep_rews[SELLER].append(rew_s)
                 batch_acts[SELLER].append(action_s)
@@ -113,10 +117,14 @@ class Trainer:
 
                 # Collect buyer observation
                 batch_obs[BUYER].append(obs_b)
+
                 # Get buyer action
                 action_b, log_prob_b = self.agent_pool.get_action(obs_b, BUYER)
+                # Shape: (num_buyers, buyer_action_size)
+
                 # Send buyer action and get transformation observation
                 obs_t, rew_b, done_b, _ = self.step_buyer(action_b)
+
                 # Collect buyer reward, action, and log prob
                 ep_rews[BUYER].append(rew_b)
                 batch_acts[BUYER].append(action_b)
@@ -124,10 +132,14 @@ class Trainer:
 
                 # Collect transformtion observation
                 batch_obs[TRANSFORM].append(obs_t)
+
                 # Get transformation action
                 action_t, log_prob_t = self.agent_pool.get_action(obs_t, TRANSFORM)
+                # Shape: (num_transformers, transformer_action_size)
+
                 # Send transformation action and get seller observation
                 obs_s, rew_t, done_t, _ = self.step_buyer(action_t)
+
                 # Collect transform reward, action, and log prob
                 ep_rews[TRANSFORM].append(rew_t)
                 batch_acts[TRANSFORM].append(action_t)
@@ -207,7 +219,8 @@ class Trainer:
 
             for ag in range(self.num_agents):
                 for stage in stages:
-                    self._learn(batch_obs, batch_acts, batch_log_probs, batch_rtgs, stage, ag)
+                    self.agent_pool._learn(batch_obs, batch_acts, batch_log_probs, batch_rtgs,\
+                            stage, ag, self.n_updates_per_iteration)
                 if i_so_far % self.save_freq == 0:
                     self.agent_pool.save_model(stage, ag, f'ppo_actor_agent{ag+1}_{i_so_far}.pth')
                     #torch.save(self.agent_pool.actor_dict[f'agent{ag+1}'].state_dict(),\
@@ -234,8 +247,8 @@ class Trainer:
         #self.logger['avg_batch_rews'][f'agent{ag+1}'].append(avg_ep_rews)
         #self.logger['avg_actor_losses'][f'agent{ag+1}'].append(avg_actor_loss)
         avg_ep_lens = str(round(avg_ep_lens, 2))
-        avg_ep_rews = str(round(avg_ep_rews, 2))
-        avg_actor_loss = str(round(avg_actor_loss, 5))
+        #avg_ep_rews = str(round(avg_ep_rews, 2))
+        #avg_actor_loss = str(round(avg_actor_loss, 5))
 
         print(flush=True)
         print(f"-------------------- Iteration #{i_so_far} --------------------", flush=True)
