@@ -49,6 +49,7 @@ def get_buyer_quantities_multi_commodities(exchange_price_action_dict_arr, agent
         shape=(num_commodities,)
     '''
     num_commodities = len(exchange_price_action_dict_arr)
+    num_seller = total_agents-1
 
     spot_demand_qty_arr = np.zeros(num_commodities)
     exchange_demand_qty_arr = np.zeros((num_commodities, total_agents))
@@ -63,7 +64,7 @@ def get_buyer_quantities_multi_commodities(exchange_price_action_dict_arr, agent
     buyer_params = {}
     buyer_params['pt'] = complete_dict[f'data_dict_agent{agent+1}']['spot_price'][t] # ()
     buyer_params['Kj'] = complete_dict[f'data_dict_agent{agent+1}']['buyer_init_inventory'] # ()
-    buyer_params['eit'] = exchange_price_action_dict[f'agent{agent+1}'] # (total_agents-1,)
+    buyer_params['eit'] = exchange_price_action_dict_arr[f'agent{agent+1}'] # (total_agents-1,)
     buyer_params['weight_tran_cost'] = coefs[2]*np.ones(num_seller) # (total_agents-1,)
     buyer_params['bias_tran_cost'] = coefs[3]*np.ones(num_seller) # (total_agents-1,)
     buyer_params['weight_spot_cost'] = coefs[2] # ()

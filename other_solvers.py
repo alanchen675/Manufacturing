@@ -1,4 +1,5 @@
 import cvxpy as cp
+import numpy as np
 from mip import Model, xsum, minimize, maximize, CONTINUOUS, OptimizationStatus
 from mip_solver import Solver
 
@@ -73,7 +74,7 @@ class CVXSolver(Solver):
         waste_exchange_qty = np.insert(action['waste_exchange_qty'], agent-1, 0)
         spot_demand_qty = action['spot_qty']
 
-        return spot_demand_qty, exchange_demand_qty, waste_exchange_qty, buyer_reward,total 
+        # return spot_demand_qty, exchange_demand_qty, waste_exchange_qty, buyer_reward,total 
 
 
     def solve(self, params, problem_type: int):
@@ -288,5 +289,6 @@ def test_mip_solver():
     solver.solve_seller(seller_params, 0)
     
 if __name__=="__main__":
+    pass
     #test_cvx_solver()
     #test_mip_solver()

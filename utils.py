@@ -1,74 +1,111 @@
-import torch
-import time
 import warnings
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import Adam
-import torch.nn.functional as F
-from torch.autograd import Variable
-from torch.distributions import MultivariateNormal
+import time
+import datetime
+import pytz
+import logging
+import os
 warnings.filterwarnings("ignore")
-import numpy as np
-from seller_policy_model import PPOAgent
 
-SELLER = 0
-BUYER = 1
-TRANSFORM = 2
-stages = {SELLER, BUYER, TRANSFORM}
+process_start_time = datetime.now(pytz.timezone('US/Eastern'))
+result_folder = './result/' + process_start_time.strftime("%Y%m%d_%H%M%S") + '{desc}'
 
-class AgentPool:
-    """
-    Agent pool for all the three types in the problem
-    """
-    def __init__(self,agents):
-        self.agents = int(agents)
-        self._init_agents()
 
-    def _init_agents(self):
-        """
-        Initialize the seller, buyer, transformation agents 
-        """
-        self.seller_obs_dim = 38
-        self.buyer_obs_dim = 38
-        self.transer_obs_dim = 38
-        self.seller_act_dim = 1
-        self.buyer_act_dim = 1
-        self.transer_act_dim = 1
-        self.seller_cov_var = torch.full(size=(self.seller_act_dim,), fill_value=0.5)
-        self.buyer_cov_var = torch.full(size=(self.buyer_act_dim,), fill_value=0.5)
-        self.trans_cov_var = torch.full(size=(self.trans_act_dim,), fill_value=0.5)
-        self.seller_cov_mat = torch.diag(self.seller_cov_var)
-        self.buyer_cov_mat = torch.diag(self.buyer_cov_var)
-        self.trans_cov_mat = torch.diag(self.trans_cov_var)
-        self.agent_pools = [None for _ in range(len(stages))] 
-        self.agent_pools[SELLER] = [PPOAgent(self.seller_obs_dim,\
-                self.seller_act_dim) for _ in range(self.agents)]
-        self.agent_pools[BUYER] = [PPOAgent(self.buyer_obs_dim,\
-                self.buyer_act_dim) for _ in range(self.agents)]
-        self.agent_pools[TRANSFORM] = [PPOAgent(self.transer_obs_dim,\
-                self.transer_act_dim) for _ in range(self.agents)]
+def get_result_folder():
+    return result_folder
 
-    def get_actions(self, obs, agent_type):
-        """
-        Given the state, output all kinds of quantities 
-        """
-        actions = []
-        log_probs = []
-        for i in range(self.agents):
-            act, logp = self.agent_pools[agent_type][i].get_action(obs[i,:])
-            actions.append(act)
-            log_probs.append(logp)
 
-        return np.array(actions), np.array(log_probs)
+def set_result_folder(folder):
+    global result_folder
+    result_folder = folder
 
-    def evaluate(self, batch_obs, batch_acts, agent_type, agent_id):
-        return self.agent_pools[agent_type][agent_id].evaluate(batch_obs, batch_acts)
 
-    def learn(self, batch_obs, batch_acts, batch_logprobs, batch_rtgs, agent_type, agent_id, n_itr):
-        self.agent_pools[agent_type][agent_id].learn(batch_obs, batch_acts, batch_logprobs, batch_rtgs, n_itr) 
+def create_logger(log_file=None):
+    if 'filepath' not in log_file:
+        log_file['filepath'] = get_result_folder()
 
-    def save_model(self, agent_type, agent_id, filename):
-        self.agent_pools[agent_type][agent_id].save_model(filename)
+    if 'desc' in log_file:
+        log_file['filepath'] = log_file['filepath'].format(desc='_' + log_file['desc'])
+    else:
+        log_file['filepath'] = log_file['filepath'].format(desc='')
 
-    def load_model(self, agent_type, agent_id, filename):
-        self.agent_pools[agent_type][agent_id].load_model(filename)
+    set_result_folder(log_file['filepath'])
+
+    if 'filename' in log_file:
+        filename = log_file['filepath'] + '/' + log_file['filename']
+    else:
+        filename = log_file['filepath'] + '/' + 'log.txt'
+
+    if not os.path.exists(log_file['filepath']):
+        os.makedirs(log_file['filepath'])
+
+    file_mode = 'a' if os.path.isfile(filename)  else 'w'
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level=logging.INFO)
+    formatter = logging.Formatter("[%(asctime)s] %(filename)s(%(lineno)d) : %(message)s", "%Y-%m-%d %H:%M:%S")
+
+    for hdlr in root_logger.handlers[:]:
+        root_logger.removeHandler(hdlr)
+
+    # write to file
+    fileout = logging.FileHandler(filename, mode=file_mode)
+    fileout.setLevel(logging.INFO)
+    fileout.setFormatter(formatter)
+    root_logger.addHandler(fileout)
+
+    # write to console
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(logging.INFO)
+    console.setFormatter(formatter)
+    root_logger.addHandler(console)
+
+class AverageMeter:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.sum += (val * n)
+        self.count += n
+
+    @property
+    def avg(self):
+        return self.sum / self.count if self.count else 0
+
+class TimeEstimator:
+    def __init__(self):
+        self.logger = logging.getLogger('TimeEstimator')
+        self.start_time = time.time()
+        self.count_zero = 0
+
+    def reset(self, count=1):
+        self.start_time = time.time()
+        self.count_zero = count-1
+
+    def get_est(self, count, total):
+        curr_time = time.time()
+        elapsed_time = curr_time - self.start_time
+        remain = total-count
+        remain_time = elapsed_time * remain / (count - self.count_zero)
+
+        elapsed_time /= 3600.0
+        remain_time /= 3600.0
+
+        return elapsed_time, remain_time
+
+    def get_est_string(self, count, total):
+        elapsed_time, remain_time = self.get_est(count, total)
+
+        elapsed_time_str = "{:.2f}h".format(elapsed_time) if elapsed_time > 1.0 else "{:.2f}m".format(elapsed_time*60)
+        remain_time_str = "{:.2f}h".format(remain_time) if remain_time > 1.0 else "{:.2f}m".format(remain_time*60)
+
+        return elapsed_time_str, remain_time_str
+
+    def print_est_time(self, count, total):
+        elapsed_time_str, remain_time_str = self.get_est_string(count, total)
+
+        self.logger.info("Epoch {:3d}/{:3d}: Time Est.: Elapsed[{}], Remain[{}]".format(
+            count, total, elapsed_time_str, remain_time_str))

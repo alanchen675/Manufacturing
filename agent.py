@@ -1,11 +1,11 @@
 import torch
 import os
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import Adam
-import torch.nn.functional as F
 import numpy as np
-
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.distributions import MultivariateNormal
+from utils import SELLER, BUYER, TRANSFORM, stages
 
 class PPOAgent:
     """
@@ -52,7 +52,7 @@ class PPOAgent:
 
     def learn(self, batch_obs, batch_acts, batch_log_probs, batch_rtgs, n_itr):
         """
-        Learning for an agent
+        Learn for an agent
         """
         V, _ = self.evaluate(batch_obs, batch_acts)
         A_k = batch_rtgs - V.detach()
@@ -71,8 +71,6 @@ class PPOAgent:
             self.critic_optim.zero_grad()
             critic_loss.backward()
             self.critic_optim.step()
-            #self.logger['actor_losses'][f'agent{ag+1}'].append(actor_loss.detach())
-        #self._log_summary(ag)
 
 class Critic(nn.Module):
     def __init__(self, n_observations, n_actions, hidden_dims=128):
@@ -110,5 +108,61 @@ class Actor(nn.Module):
 
         return output
 
+class AgentPool:
+    """
+    Agent pool for all the three types in the problem
+    """
+    def __init__(self, agents, num_commodities=1, history_length=1):
+        self.agents = int(agents)
+        self._init_agents(num_commodities, history_length)
+
+    def _init_agents(self, num_agents, num_commodities=1, history_length=1):
+        """
+        Initialize the seller, buyer, transformation agents 
+        """
+        self.seller_obs_dim = num_commodities * history_length * (1+num_agents*(12+num_agents*4))
+        self.buyer_obs_dim = self.seller_obs_dim + 2*num_commodities*num_agents
+        self.transer_obs_dim = num_commodities*(4*num_agents+3)
+        self.seller_act_dim = 4*num_commodities
+        self.buyer_act_dim = 2*num_commodities*(num_agents-1)+num_commodities
+        self.transer_act_dim = 2*num_commodities
+        self.seller_cov_var = torch.full(size=(self.seller_act_dim,), fill_value=0.5)
+        self.buyer_cov_var = torch.full(size=(self.buyer_act_dim,), fill_value=0.5)
+        self.trans_cov_var = torch.full(size=(self.transer_act_dim,), fill_value=0.5)
+        self.seller_cov_mat = torch.diag(self.seller_cov_var)
+        self.buyer_cov_mat = torch.diag(self.buyer_cov_var)
+        self.trans_cov_mat = torch.diag(self.trans_cov_var)
+        self.agent_pools = [None for _ in range(len(stages))] 
+        self.agent_pools[SELLER] = [PPOAgent(self.seller_obs_dim,\
+                self.seller_act_dim) for _ in range(self.agents)]
+        self.agent_pools[BUYER] = [PPOAgent(self.buyer_obs_dim,\
+                self.buyer_act_dim) for _ in range(self.agents)]
+        self.agent_pools[TRANSFORM] = [PPOAgent(self.transer_obs_dim,\
+                self.transer_act_dim) for _ in range(self.agents)]
+
+    def get_actions(self, obs, agent_type):
+        """
+        Given the state, output all kinds of quantities 
+        """
+        actions = []
+        log_probs = []
+        for i in range(self.agents):
+            act, logp = self.agent_pools[agent_type][i].get_action(obs[i,:])
+            actions.append(act)
+            log_probs.append(logp)
+
+        return np.array(actions), np.array(log_probs)
+
+    def evaluate(self, batch_obs, batch_acts, agent_type, agent_id):
+        return self.agent_pools[agent_type][agent_id].evaluate(batch_obs, batch_acts)
+
+    def learn(self, batch_obs, batch_acts, batch_logprobs, batch_rtgs, agent_type, agent_id, n_itr):
+        self.agent_pools[agent_type][agent_id].learn(batch_obs, batch_acts, batch_logprobs, batch_rtgs, n_itr) 
+
+    def save_model(self, agent_type, agent_id, filename):
+        self.agent_pools[agent_type][agent_id].save_model(filename)
+
+    def load_model(self, agent_type, agent_id, filename):
+        self.agent_pools[agent_type][agent_id].load_model(filename)
 
 

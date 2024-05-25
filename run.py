@@ -1,6 +1,5 @@
 from simulator import Manufacturing_Simulator
 from utils import PPO
-import logging
 import argparse
 
 hyperparameters = {

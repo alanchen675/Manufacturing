@@ -1,11 +1,6 @@
 import numpy as np
 import xpress as xp
 
-SELLER_PROBLEM = 0
-BUYER_PROBLEM = 1
-TRANSFORMATION_PROBLEM = 2
-
-
 class Solver: 
     def __init__(self, num_agents: int, num_commodities: int,  horizon: int =12):
         self.num_agents = num_agents
