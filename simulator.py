@@ -198,18 +198,16 @@ class Manufacturing_Simulator:
         """
         actual_d = self.calc_actual_sold(self.q[:,:,:,self.t], self.inv[:,:,self.t])
         actual_dw = self.calc_actual_sold(self.waste_q[:,:,:,self.t], self.waste_inv[:,:,self.t])
-        inv_buy =  self.calc_inv_buy(self.inv_sell[n,:,self.t], actual_d)
-        waste_inv_buy = self.calc_inv_buy(self.waste_inv_sell[n,:,self.t], actual_dw)
+        inv_buy =  self.calc_inv_buy(self.inv_sell[:,:,self.t], actual_d)
+        waste_inv_buy = self.calc_inv_buy(self.waste_inv_sell[:,:,self.t], actual_dw)
         trans_states = []
         for n in range(self.num_agents):
             state_flat = buyer_states[n]
             for key in keys:
-                state_flat = np.concatenate(state_flat, buyer_actions[key][n].flatten())
-            # for key, value in buyer_actions.items():
-            #     state_flat = np.concatenate(state_flat, value[n])
+                state_flat = np.concatenate((state_flat, buyer_actions[key][n].flatten()))
 
-            state_flat = np.concatenate(state_flat, actual_d[n,:,:].flatten(), actual_dw[n,:,:].flatten())
-            state_flat = np.concatenate(state_flat, inv_buy[n,:,:].flatten(), waste_inv_buy[n,:,:].flatten())
+            state_flat = np.concatenate((state_flat, actual_d[n,:,:].flatten(), actual_dw[n,:,:].flatten()))
+            state_flat = np.concatenate((state_flat, inv_buy[n,:].flatten(), waste_inv_buy[n,:].flatten()))
             trans_states.append(state_flat)
         
         # Update the system parameters
@@ -272,8 +270,8 @@ class Manufacturing_Simulator:
         # Generate the tensor d
         for c in range(self.num_commodities):
             for n in range(self.num_agents):
-                # Step 1: Sort agents based on q[c, :, n] in descending order
-                sorted_indices = np.argsort(-q[c, :, n])
+                # Step 1: Sort agents based on q[n, :, c] in descending order
+                sorted_indices = np.argsort(-q[:, n, c])
 
                 # Step 2: Compute d for each agent in the sorted list
                 cum_sum = 0  # Initialize cumulative sum
@@ -281,14 +279,14 @@ class Manufacturing_Simulator:
                     agent_i = sorted_indices[i]
                     if i == 0:
                         # First agent n(1)
-                        d[c, agent_i, n] = min(I[c, n], q[c, agent_i, n])
+                        d[agent_i, n, c] = min(I[n, c], q[agent_i, n, c])
                     else:
                         # Subsequent agents n(i)
-                        available_I = I[c, n] - cum_sum
-                        d[c, agent_i, n] = min(available_I, q[c, agent_i, n])
+                        available_I = I[n, c] - cum_sum
+                        d[agent_i, n, c] = min(available_I, q[agent_i, n, c])
                     
                     # Update cumulative sum
-                    cum_sum += d[c, agent_i, n]
+                    cum_sum += d[agent_i, n, c]
 
         return d
     
