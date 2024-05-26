@@ -50,15 +50,15 @@ class Trainer:
     def rollout(self):
         # Let the following information be a list of three elements and each element can be the tensors for
         # seller, buyer, and transformation
-        batch_obs = [[] for _ in len(stages)]            # batch observations. 
-        batch_log_probs = [[] for _ in len(stages)]      # log probs of each action
-        batch_acts = [[] for _ in len(stages)]           # batch actions
-        batch_rews = [[] for _ in len(stages)]           # batch rewards
-        batch_rtgs = [[] for _ in len(stages)]           # batch rewards-to-go
+        batch_obs = [[] for _ in len(range(stages))]            # batch observations. 
+        batch_log_probs = [[] for _ in len(range(stages))]     # log probs of each action
+        batch_acts = [[] for _ in len(range(stages))]           # batch actions
+        batch_rews = [[] for _ in len(range(stages))]           # batch rewards
+        batch_rtgs = [[] for _ in len(range(stages))]           # batch rewards-to-go
         batch_lens = []           # episodic lengths in batch
         # Episodic data. Keeps track of rewards per episode, will get cleared
         # upon each new episode
-        ep_rews = [[] for _ in len(stages)]
+        ep_rews = [[] for _ in len(range(stages))]
 
         t = 0 # Keeps track of how many timesteps we've run so far this batch+
 
