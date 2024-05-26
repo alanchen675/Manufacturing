@@ -122,9 +122,9 @@ class AgentPool:
         """
         Initialize the seller, buyer, transformation agents 
         """
-        self.seller_obs_dim = num_commodities * history_length * (1+num_agents*(12+num_agents*4))
-        self.buyer_obs_dim = self.seller_obs_dim + 2*num_commodities*num_agents
-        self.transer_obs_dim = num_commodities*(4*num_agents+3)
+        self.seller_obs_dim = num_commodities * history_length * (10+num_agents*(4+num_agents*2))+2
+        self.buyer_obs_dim = self.seller_obs_dim + 2*num_commodities*num_agents + num_commodities
+        self.transer_obs_dim = self.buyer_obs_dim + num_commodities*(4*num_agents+3)
         self.seller_act_dim = 4*num_commodities
         self.buyer_act_dim = 2*num_commodities*(num_agents-1)+num_commodities
         self.transer_act_dim = 2*num_commodities
@@ -152,6 +152,11 @@ class AgentPool:
         log_probs = []
         for i in range(self.agents):
             act, logp = self.agent_pools[agent_type][i].get_action(obs[i,:])
+            if agent_type == BUYER:
+                new_act = np.zeros(self.buyer_act_dim+1)
+                new_act[:i] = act[:i]
+                new_act[i+1:] = act[i:]
+                act = new_act
             actions.append(act)
             log_probs.append(logp)
 

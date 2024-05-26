@@ -71,19 +71,20 @@ class Manufacturing_Simulator:
             ew = self.waste_price[..., start_time:self.t].flatten()
             q = self.q[..., start_time:self.t].flatten()
             qw = self.waste_q[..., start_time:self.t].flatten()
-            qs = self.spot_q[..., start_time:self.t].flatten()
-            d = self.actual_d[..., start_time:self.t].flatten()
-            dw = self.waste_actual_d[..., start_time:self.t].flatten()
-            I = self.inv[n,:,start_time:self.t].flatten()
-            Iw = self.waste_inv[n,:,start_time:self.t].flatten()
+            qs = self.spot_q[n, :, start_time:self.t].flatten()
+            d = self.actual_d[n, :, :, start_time:self.t].flatten()
+            dw = self.waste_actual_d[n, :, :, start_time:self.t].flatten()
+            I = self.inv[n,:,start_time:self.t+1].flatten()
+            Iw = self.waste_inv[n,:,start_time:self.t+1].flatten()
             I_bar1 = self.inv_sell[n,:,start_time:self.t].flatten()
             Iw_bar1 = self.waste_inv_sell[n,:,start_time:self.t].flatten()
             I_bar = self.inv_buy[n,:,start_time:self.t].flatten()
             Iw_bar = self.waste_inv_buy[n,:,start_time:self.t].flatten()
             u_eco = self.eco_u[n,:,start_time:self.t].flatten()
-            u_tx = self.tx_u[n,:,start_time:self.t].flatten()
-            
-            
+            u_tx = self.tx_u[n,:,start_time:self.t].flatten()   
+            # c 10
+            # nc 4
+            # ncc 2
             # Concatenate flattened arrays
             state_flat = np.concatenate((p, e, ew, q, qw, qs, d, dw, I, Iw, I_bar1, Iw_bar1, I_bar, Iw_bar, u_eco, u_tx))
             
