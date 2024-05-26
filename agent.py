@@ -117,6 +117,7 @@ class AgentPool:
     """
     def __init__(self, num_agents, num_commodities=1, history_length=1):
         self.num_agents = int(num_agents)
+        self.num_commodities = num_commodities
         self.result_folder = get_result_folder()
         self._init_agents(num_agents, num_commodities, history_length)
 
@@ -125,7 +126,7 @@ class AgentPool:
         Initialize the seller, buyer, transformation agents 
         """
         self.seller_obs_dim = num_commodities * history_length * (10+num_agents*(4+num_agents*2))+2*num_commodities
-        self.buyer_obs_dim = self.seller_obs_dim + 2*num_commodities*num_agents + num_commodities
+        self.buyer_obs_dim = self.seller_obs_dim + 5*num_commodities
         self.transer_obs_dim = self.buyer_obs_dim + num_commodities*(4*num_agents+3)
         self.seller_act_dim = 4*num_commodities
         self.buyer_act_dim = 2*num_commodities*(num_agents-1)+num_commodities
@@ -155,9 +156,10 @@ class AgentPool:
         for i in range(self.num_agents):
             act, logp = self.agent_pools[agent_type][i].get_action(obs[i,:])
             if agent_type == BUYER:
-                new_act = np.zeros(self.buyer_act_dim+1)
-                new_act[:i] = act[:i]
-                new_act[i+1:] = act[i:]
+                c = self.num_commodities
+                new_act = np.zeros(self.buyer_act_dim+2*c)
+                new_act = np.insert(act, c+i*c, np.zeros(c)) 
+                new_act = np.insert(new_act, c*(self.num_agents+1+i), np.zeros(c))
                 act = new_act
             actions.append(act)
             log_probs.append(logp)

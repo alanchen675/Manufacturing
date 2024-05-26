@@ -142,7 +142,7 @@ class Manufacturing_Simulator:
         for n in range(self.num_agents):
             state_flat = seller_states[n]
             # Add the new information to the seller state of the n-th agent
-            state_flat = np.concatenate((state_flat, self.spot_price[self.t]))
+            state_flat = np.concatenate((state_flat, self.spot_price[:, self.t]))
             for key in keys:
                 # if 'price' in key:
                 state_flat = np.concatenate((state_flat, seller_actions[key][n].flatten()))
@@ -162,9 +162,13 @@ class Manufacturing_Simulator:
         # Buyer action conversion
         keys = ['q', 'waste_q', 'spot_q']
         nc = self.num_agents*self.num_commodities
-        lengths = [self.num_commodities, nc, nc]
-        key_len_dict = {k: v for k in zip(keys, lengths)}
+        lengths = [nc, nc, self.num_commodities]
+        key_len_dict = {k: v for k, v in zip(keys, lengths)}
         buyer_actions = self.action_conversion(key_len_dict, orig_buyer_actions)
+        for k, arr in buyer_actions.items():
+            if k=='spot_q':
+                continue
+            buyer_actions[k] = arr.reshape(self.num_agents, self.num_agents, self.num_commodities)
         #TODO - Action conversion for buyer
         # Update the buyer states with the buyer actions
         for key, value in buyer_actions.items():
