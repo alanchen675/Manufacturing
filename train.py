@@ -32,7 +32,7 @@ from trainer import Trainer
 
 logger_params = {
     'log_file': {
-        # 'desc': 'train__rmp_n10',
+        'desc': 'train',
         'filename': 'run_log'
     }
 }

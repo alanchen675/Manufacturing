@@ -5,17 +5,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import MultivariateNormal
-from utils import SELLER, BUYER, TRANSFORM, stages
+from config import SELLER, BUYER, TRANSFORM, stages
+from utils import get_result_folder
 
 class PPOAgent:
     """
     Agent model for the problem
     """
-    def __init__(self, n_observations, n_actions, chkpt_dir, hidden_dims=128):
+    def __init__(self, n_observations, n_actions, chkpt_dir, hidden_dims=128, lr=0.01):
         self.actor = Actor(n_observations, n_actions, hidden_dims)
         self.critic = Critic(n_observations, n_actions, hidden_dims)
-        self.actor_optim = optim.Adam(self.actor.parameters(), lr=self.lr)
-        self.critic_optim = optim.Adam(self.critic.parameters(), lr=self.lr)
+        self.actor_optim = optim.Adam(self.actor.parameters(), lr=lr)
+        self.critic_optim = optim.Adam(self.critic.parameters(), lr=lr)
         self.cov_var = torch.full(size=(n_actions,), fill_value=0.5)
         self.cov_mat = torch.diag(self.cov_var)
         self.chkpt_dir = chkpt_dir
@@ -114,6 +115,7 @@ class AgentPool:
     """
     def __init__(self, agents, num_commodities=1, history_length=1):
         self.agents = int(agents)
+        self.result_folder = get_result_folder()
         self._init_agents(num_commodities, history_length)
 
     def _init_agents(self, num_agents, num_commodities=1, history_length=1):
@@ -133,12 +135,14 @@ class AgentPool:
         self.buyer_cov_mat = torch.diag(self.buyer_cov_var)
         self.trans_cov_mat = torch.diag(self.trans_cov_var)
         self.agent_pools = [None for _ in range(len(stages))] 
+
+        chkpt_path = '{}/chpkt/{}_{}'
         self.agent_pools[SELLER] = [PPOAgent(self.seller_obs_dim,\
-                self.seller_act_dim) for _ in range(self.agents)]
+                self.seller_act_dim, chkpt_path.format(self.result_folder, 'seller', ag)) for ag in range(self.agents)]
         self.agent_pools[BUYER] = [PPOAgent(self.buyer_obs_dim,\
-                self.buyer_act_dim) for _ in range(self.agents)]
+                self.buyer_act_dim, chkpt_path.format(self.result_folder, 'buyer', ag)) for ag in range(self.agents)]
         self.agent_pools[TRANSFORM] = [PPOAgent(self.transer_obs_dim,\
-                self.transer_act_dim) for _ in range(self.agents)]
+                self.transer_act_dim, chkpt_path.format(self.result_folder, 'trans', ag)) for ag in range(self.agents)]
 
     def get_actions(self, obs, agent_type):
         """
