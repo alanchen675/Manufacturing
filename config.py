@@ -64,9 +64,9 @@ data_config = {
     'tx_p': DataStats(500., 1., 50., individual_shape),
 }
 
-def init_historical_data(config):
+def init_historical_data():
     historic_data = {}
-    for param, param_config in config.items():
+    for param, param_config in data_config.items():
         historic_data[param] = np.random.normal(param_config.mean, param_config.std, param_config.shape)
     # historic_data['spot_price'] = np.random.normal(config['spot_price'].mean, config['spot_price'].std, general_shape)
     # historic_data['price'] = np.random.normal(config['price'].mean, config['price'].std, individual_shape)

@@ -51,12 +51,12 @@ class Manufacturing_Simulator:
         self.tx_u = np.zeros(shape=individual_shape)
         self.tx_p = np.zeros(shape=individual_shape)
 
-        historical_data = init_historical_data(self.history_length)
+        historical_data = init_historical_data()
         # Make the first self.history_length time steps the same as the historical data
         for key, value in historical_data.items():
             getattr(self, key)[..., :self.history_length] = value
         ## Initialize the seller state values
-        return self.get_seller_states()
+        return self.get_seller_state()
     
     def get_seller_state(self):
         """
@@ -101,8 +101,8 @@ class Manufacturing_Simulator:
         for key, value in seller_actions.items():
             getattr(self, key)[..., self.t] = value
         # Get the buyer states and seller rewards
-        buyer_states = self.get_buyer_states(seller_states, seller_actions)
-        seller_rewards = self.get_seller_rewards(seller_states, seller_actions)
+        buyer_states = self.get_buyer_state(seller_states, seller_actions)
+        seller_rewards = self.get_seller_reward(seller_states, seller_actions)
         return buyer_states, seller_rewards
     
     def get_seller_reward(self):
@@ -143,8 +143,8 @@ class Manufacturing_Simulator:
         for key, value in buyer_actions.items():
             getattr(self, key)[..., self.t] = value
         # Get trans states and buyer rewards
-        trans_states = self.get_trans_states(buyer_states, buyer_actions)
-        buyer_rewards = self.get_buyer_rewards(buyer_states, buyer_actions)
+        trans_states = self.get_trans_state(buyer_states, buyer_actions)
+        buyer_rewards = self.get_buyer_reward(buyer_states, buyer_actions)
         return trans_states, buyer_rewards
     
     def get_buyer_reward(self):
@@ -211,7 +211,7 @@ class Manufacturing_Simulator:
             trans_actions['waste_tx_u'][:,:,self.t]+w_bot)
         # Get the seller states and trans rewards
         self.t += 1
-        seller_states = self.get_seller_states()
+        seller_states = self.get_seller_state()
         trans_rewards = self.get_trans_reward(trans_states, trans_actions)
         done = False
         # Check if the episode is done

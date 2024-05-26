@@ -50,21 +50,21 @@ class Trainer:
     def rollout(self):
         # Let the following information be a list of three elements and each element can be the tensors for
         # seller, buyer, and transformation
-        batch_obs = [[] for _ in len(range(stages))]            # batch observations. 
-        batch_log_probs = [[] for _ in len(range(stages))]     # log probs of each action
-        batch_acts = [[] for _ in len(range(stages))]           # batch actions
-        batch_rews = [[] for _ in len(range(stages))]           # batch rewards
-        batch_rtgs = [[] for _ in len(range(stages))]           # batch rewards-to-go
+        batch_obs = [[] for _ in range(len(stages))]            # batch observations. 
+        batch_log_probs = [[] for _ in range(len(stages))]     # log probs of each action
+        batch_acts = [[] for _ in range(len(stages))]           # batch actions
+        batch_rews = [[] for _ in range(len(stages))]           # batch rewards
+        batch_rtgs = [[] for _ in range(len(stages))]           # batch rewards-to-go
         batch_lens = []           # episodic lengths in batch
         # Episodic data. Keeps track of rewards per episode, will get cleared
         # upon each new episode
-        ep_rews = [[] for _ in len(range(stages))]
+        ep_rews = [[] for _ in range(len(stages))]
 
         t = 0 # Keeps track of how many timesteps we've run so far this batch+
 
         while t < self.num_steps:
             ep_rews = []
-            obs_s = self.reset()
+            obs_s = self.env.reset()
             # Shape: seller observations - (n_agents, seller_state_size)
             done = False
 
@@ -76,7 +76,7 @@ class Trainer:
                 batch_obs[SELLER].append(obs_s)
 
                 # Get seller action
-                action_s, log_prob_s = self.agent_pool.get_action(obs_s, SELLER)
+                action_s, log_prob_s = self.agent_pool.get_actions(obs_s, SELLER)
                 # Shape: (num_sellers, seller_action_size)
 
                 # Send seller action and get buyer observation
@@ -92,7 +92,7 @@ class Trainer:
                 batch_obs[BUYER].append(obs_b)
 
                 # Get buyer action
-                action_b, log_prob_b = self.agent_pool.get_action(obs_b, BUYER)
+                action_b, log_prob_b = self.agent_pool.get_actions(obs_b, BUYER)
                 # Shape: (num_buyers, buyer_action_size)
 
                 # Send buyer action and get transformation observation
@@ -108,7 +108,7 @@ class Trainer:
                 batch_obs[TRANSFORM].append(obs_t)
 
                 # Get transformation action
-                action_t, log_prob_t = self.agent_pool.get_action(obs_t, TRANSFORM)
+                action_t, log_prob_t = self.agent_pool.get_actions(obs_t, TRANSFORM)
                 # Shape: (num_transformers, transformer_action_size)
 
                 # Send transformation action and get seller observation
