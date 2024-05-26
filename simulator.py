@@ -184,10 +184,10 @@ class Manufacturing_Simulator:
         """
         e_reshape = self.price[:,:,self.t].reshape(self.num_agents, 1, self.num_commodities)
         ew_reshape = self.waste_price[:,:,self.t].reshape(self.num_agents, 1, self.num_commodities)
-        p_reshape = self.spot_price[:,self.t].reshape(self.num_commodities, 1)
+        #p_reshape = self.spot_price[:,self.t].reshape(self.num_commodities, 1)
         reward = -np.sum(self.actual_d[:,:,:,self.t]*e_reshape, axis=(0,2))
         reward -= np.sum(self.waste_actual_d[:,:,:,self.t]*ew_reshape, axis=(0,2))
-        reward -= np.sum(self.spot_q[:,:,self.t]*p_reshape, axis=0)
+        reward -= np.sum(self.spot_q[:,:,self.t]*self.spot_price[:,self.t], axis=1)
         reward -= self.LAMBDA*np.sum(self.actual_d[:,:,:,self.t]-self.q[:,:,:,self.t], axis=(0,2))
         reward -= self.LAMBDA*np.sum(self.waste_actual_d[:,:,:,self.t]-self.waste_q[:,:,:,self.t], axis=(0,2))
         return reward
@@ -228,7 +228,7 @@ class Manufacturing_Simulator:
         # Trans action conversion
         keys = ['tx_u', 'eco_u']
         key_len_dict = {k: self.num_commodities for k in keys}
-        trans_actions = self.action_conversion(keys, orig_trans_actions)
+        trans_actions = self.action_conversion(key_len_dict, orig_trans_actions)
         # Update the state with the trans actions
         for key, value in trans_actions.items():
             getattr(self, key)[..., self.t] = value
