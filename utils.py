@@ -1,9 +1,9 @@
 import warnings
 import time
-import datetime
 import pytz
 import logging
 import os
+from datetime import datetime
 warnings.filterwarnings("ignore")
 
 process_start_time = datetime.now(pytz.timezone('US/Eastern'))
