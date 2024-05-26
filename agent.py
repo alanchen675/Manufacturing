@@ -40,6 +40,8 @@ class PPOAgent:
         # Sample an action from the distribution and get its log prob
         action = dist.sample()
         log_prob = dist.log_prob(action)
+        action = action.detach().numpy()
+        log_prob = log_prob.detach().numpy()
   
         # Return the sampled action and the log prob of that action
         return action, log_prob
@@ -113,16 +115,16 @@ class AgentPool:
     """
     Agent pool for all the three types in the problem
     """
-    def __init__(self, agents, num_commodities=1, history_length=1):
-        self.agents = int(agents)
+    def __init__(self, num_agents, num_commodities=1, history_length=1):
+        self.num_agents = int(num_agents)
         self.result_folder = get_result_folder()
-        self._init_agents(num_commodities, history_length)
+        self._init_agents(num_agents, num_commodities, history_length)
 
     def _init_agents(self, num_agents, num_commodities=1, history_length=1):
         """
         Initialize the seller, buyer, transformation agents 
         """
-        self.seller_obs_dim = num_commodities * history_length * (10+num_agents*(4+num_agents*2))+2
+        self.seller_obs_dim = num_commodities * history_length * (10+num_agents*(4+num_agents*2))+2*num_commodities
         self.buyer_obs_dim = self.seller_obs_dim + 2*num_commodities*num_agents + num_commodities
         self.transer_obs_dim = self.buyer_obs_dim + num_commodities*(4*num_agents+3)
         self.seller_act_dim = 4*num_commodities
@@ -138,11 +140,11 @@ class AgentPool:
 
         chkpt_path = '{}/chpkt/{}_{}'
         self.agent_pools[SELLER] = [PPOAgent(self.seller_obs_dim,\
-                self.seller_act_dim, chkpt_path.format(self.result_folder, 'seller', ag)) for ag in range(self.agents)]
+                self.seller_act_dim, chkpt_path.format(self.result_folder, 'seller', ag)) for ag in range(self.num_agents)]
         self.agent_pools[BUYER] = [PPOAgent(self.buyer_obs_dim,\
-                self.buyer_act_dim, chkpt_path.format(self.result_folder, 'buyer', ag)) for ag in range(self.agents)]
+                self.buyer_act_dim, chkpt_path.format(self.result_folder, 'buyer', ag)) for ag in range(self.num_agents)]
         self.agent_pools[TRANSFORM] = [PPOAgent(self.transer_obs_dim,\
-                self.transer_act_dim, chkpt_path.format(self.result_folder, 'trans', ag)) for ag in range(self.agents)]
+                self.transer_act_dim, chkpt_path.format(self.result_folder, 'trans', ag)) for ag in range(self.num_agents)]
 
     def get_actions(self, obs, agent_type):
         """
@@ -150,7 +152,7 @@ class AgentPool:
         """
         actions = []
         log_probs = []
-        for i in range(self.agents):
+        for i in range(self.num_agents):
             act, logp = self.agent_pools[agent_type][i].get_action(obs[i,:])
             if agent_type == BUYER:
                 new_act = np.zeros(self.buyer_act_dim+1)

@@ -82,9 +82,6 @@ class Manufacturing_Simulator:
             Iw_bar = self.waste_inv_buy[n,:,start_time:self.t].flatten()
             u_eco = self.eco_u[n,:,start_time:self.t].flatten()
             u_tx = self.tx_u[n,:,start_time:self.t].flatten()   
-            # c 10
-            # nc 4
-            # ncc 2
             # Concatenate flattened arrays
             state_flat = np.concatenate((p, e, ew, q, qw, qs, d, dw, I, Iw, I_bar1, Iw_bar1, I_bar, Iw_bar, u_eco, u_tx))
             
@@ -93,32 +90,54 @@ class Manufacturing_Simulator:
 
         return np.array(seller_states)
 
-    def step_sell(self, seller_states, seller_actions):
+    def action_conversion(self, keys, actions):
+        """
+        The actions input is the direct output of the RL agent.
+        It has to be converted to be meaningful system values.
+        conv_actions = {'price': array arr_e of shape (num_agents, num_commodities), 'waste_price': arr_ew},
+        where arr_e[k] is the price of seller k for all commodities
+
+        The function only arranges the actions input to be a dictionary now.
+        The output of the RL agent are values in [0,1]. Need further conversion to make them price, etc.
+        """
+        # TODO - Convert the value to be meaningful system values
+        conv_actions = {k: np.zeros((self.num_agents, length), dtype=actions.dtype) for k, length in keys.items()}
+        for i in range(self.num_agents):
+            start = 0
+            for key, length in keys.items():
+                conv_actions[key][i] = actions[i, start:start + length]
+                start += length
+        return conv_actions
+
+    def step_sell(self, seller_states, orig_seller_actions):
         """
         Step function for the selling step
         Get the seller actions and return the states for the buyer agents
         """
+        # Seller action conversion
+        keys = ['price', 'waste_price', 'inv_sell', 'waste_inv_sell']
+        key_len_dict = {k: self.num_commodities for k in keys}
+        seller_actions = self.action_conversion(key_len_dict, orig_seller_actions)
         # Update the seller states with the seller actions
         for key, value in seller_actions.items():
             getattr(self, key)[..., self.t] = value
         # Get the buyer states and seller rewards
-        buyer_states = self.get_buyer_state(seller_states, seller_actions)
-        seller_rewards = self.get_seller_reward(seller_states, seller_actions)
+        buyer_states = self.get_buyer_state(keys, seller_states, seller_actions)
+        seller_rewards = self.get_seller_reward()
         return buyer_states, seller_rewards
     
     def get_seller_reward(self):
         """
         Get the rewards for the seller agents
         """
-        reward = (self.price*(self.inv[:,:,self.t]-self.inv_sell[:,:,self.t])).sum(dim=1)
+        reward = (self.price[:,:,self.t]*(self.inv[:,:,self.t]-self.inv_sell[:,:,self.t])).sum(axis=1)
         return reward
     
-    def get_buyer_state(self, seller_states, seller_actions):
+    def get_buyer_state(self, keys, seller_states, seller_actions):
         """
         Get the output of the step 1 function to the states for the buyer agents.
         """
         buyer_states = []
-        keys = ['price', 'waste_price', 'inv_sell', 'waste_inv_sell']
 
         for n in range(self.num_agents):
             state_flat = seller_states[n]
@@ -135,17 +154,24 @@ class Manufacturing_Simulator:
         
         return np.array(buyer_states)
 
-    def step_buy(self, buyer_states, buyer_actions):
+    def step_buy(self, buyer_states, orig_buyer_actions):
         """
         Step function for the buying step
         Get the buyer actions and return the states for the trans agents
         """
+        # Buyer action conversion
+        keys = ['q', 'waste_q', 'spot_q']
+        nc = self.num_agents*self.num_commodities
+        lengths = [self.num_commodities, nc, nc]
+        key_len_dict = {k: v for k in zip(keys, lengths)}
+        buyer_actions = self.action_conversion(key_len_dict, orig_buyer_actions)
+        #TODO - Action conversion for buyer
         # Update the buyer states with the buyer actions
         for key, value in buyer_actions.items():
             getattr(self, key)[..., self.t] = value
         # Get trans states and buyer rewards
-        trans_states = self.get_trans_state(buyer_states, buyer_actions)
-        buyer_rewards = self.get_buyer_reward(buyer_states, buyer_actions)
+        trans_states = self.get_trans_state(keys, buyer_states, buyer_actions)
+        buyer_rewards = self.get_buyer_reward()
         return trans_states, buyer_rewards
     
     def get_buyer_reward(self):
@@ -162,7 +188,7 @@ class Manufacturing_Simulator:
         reward -= self.LAMBDA*np.sum(self.waste_actual_d[:,:,:,self.t]-self.waste_q[:,:,:,self.t], axis=(0,2))
         return reward
     
-    def get_trans_state(self, buyer_states, buyer_actions):
+    def get_trans_state(self, keys, buyer_states, buyer_actions):
         """
         Get the output of the step 2 function to the states for the transformation agents.
         """
@@ -170,7 +196,6 @@ class Manufacturing_Simulator:
         actual_dw = self.calc_actual_sold(self.waste_q[:,:,:,self.t], self.waste_inv[:,:,self.t])
         inv_buy =  self.calc_inv_buy(self.inv_sell[n,:,self.t], actual_d)
         waste_inv_buy = self.calc_inv_buy(self.waste_inv_sell[n,:,self.t], actual_dw)
-        keys = ['q', 'waste_q', 'spot_q']
         trans_states = []
         for n in range(self.num_agents):
             state_flat = buyer_states[n]
@@ -193,11 +218,15 @@ class Manufacturing_Simulator:
         
         return np.array(trans_states)
     
-    def step_trans(self, trans_states, trans_actions):
+    def step_trans(self, trans_states, orig_trans_actions):
         """
         Step function for the transformation step
         Get the trans actions and return the states for the seller agents for the next time step
         """
+        # Trans action conversion
+        keys = ['tx_u', 'eco_u']
+        key_len_dict = {k: self.num_commodities for k in keys}
+        trans_actions = self.action_conversion(keys, orig_trans_actions)
         # Update the state with the trans actions
         for key, value in trans_actions.items():
             getattr(self, key)[..., self.t] = value
@@ -208,12 +237,13 @@ class Manufacturing_Simulator:
         # Calculate the inv and inv_waste for the next time step
         self.inv[:,:,self.t+1] = self.inv_buy[:,:,self.t]-trans_actions['tx_u'][:,:,self.t]-\
             trans_actions['eco_u'][:,:,self.t]+u_bot
-        self.waste_inv[:,:,self.t+1] = (1-self.delta)*(self.waste_inv_buy[:,:,self.t]-\
-            trans_actions['waste_tx_u'][:,:,self.t]+w_bot)
+        #self.waste_inv[:,:,self.t+1] = (1-self.delta)*(self.waste_inv_buy[:,:,self.t]-\
+        #    trans_actions['waste_tx_u'][:,:,self.t]+w_bot)
+        self.waste_inv[:,:,self.t+1] = (1-self.delta)*(self.waste_inv_buy[:,:,self.t]+w_bot)
         # Get the seller states and trans rewards
         self.t += 1
         seller_states = self.get_seller_state()
-        trans_rewards = self.get_trans_reward(trans_states, trans_actions)
+        trans_rewards = self.get_trans_reward(trans_actions)
         done = False
         # Check if the episode is done
         if self.t==self.episode_length:

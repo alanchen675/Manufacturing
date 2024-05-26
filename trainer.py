@@ -56,14 +56,13 @@ class Trainer:
         batch_rews = [[] for _ in range(len(stages))]           # batch rewards
         batch_rtgs = [[] for _ in range(len(stages))]           # batch rewards-to-go
         batch_lens = []           # episodic lengths in batch
-        # Episodic data. Keeps track of rewards per episode, will get cleared
-        # upon each new episode
-        ep_rews = [[] for _ in range(len(stages))]
 
         t = 0 # Keeps track of how many timesteps we've run so far this batch+
 
         while t < self.num_steps:
-            ep_rews = []
+            # Episodic data. Keeps track of rewards per episode, will get cleared
+            # upon each new episode
+            ep_rews = [[] for _ in range(len(stages))]
             obs_s = self.env.reset()
             # Shape: seller observations - (n_agents, seller_state_size)
             done = False
@@ -80,7 +79,7 @@ class Trainer:
                 # Shape: (num_sellers, seller_action_size)
 
                 # Send seller action and get buyer observation
-                obs_b, rew_s, _, _ = self.step_seller(action_s)
+                obs_b, rew_s = self.env.step_sell(obs_s, action_s)
 
                 # Collect seller reward, action, and log prob
                 ep_rews[SELLER].append(rew_s)
@@ -96,7 +95,7 @@ class Trainer:
                 # Shape: (num_buyers, buyer_action_size)
 
                 # Send buyer action and get transformation observation
-                obs_t, rew_b, _, _ = self.step_buyer(action_b)
+                obs_t, rew_b = self.env.step_buy(obs_b, action_b)
 
                 # Collect buyer reward, action, and log prob
                 ep_rews[BUYER].append(rew_b)
@@ -112,7 +111,7 @@ class Trainer:
                 # Shape: (num_transformers, transformer_action_size)
 
                 # Send transformation action and get seller observation
-                obs_s, rew_t, done_t, _ = self.step_buyer(action_t)
+                obs_s, rew_t, done_t = self.env.step_trans(obs_t, action_t)
 
                 # Collect transform reward, action, and log prob
                 ep_rews[TRANSFORM].append(rew_t)
