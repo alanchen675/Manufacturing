@@ -75,7 +75,7 @@ class Trainer:
                 batch_obs[SELLER].append(obs_s)
 
                 # Get seller action
-                action_s, log_prob_s = self.agent_pool.get_actions(obs_s, SELLER)
+                action_s, log_prob_s, _ = self.agent_pool.get_actions(obs_s, SELLER)
                 # Shape: (num_sellers, seller_action_size)
 
                 # Send seller action and get buyer observation
@@ -91,11 +91,11 @@ class Trainer:
                 batch_obs[BUYER].append(obs_b)
 
                 # Get buyer action
-                action_b, log_prob_b = self.agent_pool.get_actions(obs_b, BUYER)
+                action_b, log_prob_b, conv_action_b = self.agent_pool.get_actions(obs_b, BUYER)
                 # Shape: (num_buyers, buyer_action_size)
 
                 # Send buyer action and get transformation observation
-                obs_t, rew_b = self.env.step_buy(obs_b, action_b)
+                obs_t, rew_b = self.env.step_buy(obs_b, conv_action_b)
 
                 # Collect buyer reward, action, and log prob
                 ep_rews[BUYER].append(rew_b)
@@ -107,7 +107,7 @@ class Trainer:
                 batch_obs[TRANSFORM].append(obs_t)
 
                 # Get transformation action
-                action_t, log_prob_t = self.agent_pool.get_actions(obs_t, TRANSFORM)
+                action_t, log_prob_t, _ = self.agent_pool.get_actions(obs_t, TRANSFORM)
                 # Shape: (num_transformers, transformer_action_size)
 
                 # Send transformation action and get seller observation
@@ -129,9 +129,11 @@ class Trainer:
 
 
         # Reshape data as tensors in the shape specified before returning
-        batch_obs = torch.tensor(batch_obs, dtype=torch.float)
-        batch_acts = torch.tensor(batch_acts, dtype=torch.float)
-        batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float)
+        for i in stages:
+            for n in range(self.num_agents):
+                batch_obs[i][n] = torch.tensor(batch_obs[i][n], dtype=torch.float)
+                batch_acts[i][n] = torch.tensor(batch_acts[i][n], dtype=torch.float)
+                batch_log_probs[i][n] = torch.tensor(batch_log_probs[i][n], dtype=torch.float)
         #batch_obs = [torch.tensor(obs, dtype=torch.float) for obs in batch_obs]
         #batch_acts = [torch.tensor(obs, dtype=torch.float) for obs in batch_acts]
         #batch_log_probs = [torch.tensor(obs, dtype=torch.float) for obs in batch_log_probs]
@@ -183,7 +185,7 @@ class Trainer:
         i_so_far = 0 # Batches simulated so far
 
         while t_so_far < total_timesteps:
-            self.logger.info('=================================================================')
+            self.logger.info(f'======================Epoch {i_so_far+1}=========================')
             score_AM = AverageMeter()
             loss_AM = AverageMeter()
 

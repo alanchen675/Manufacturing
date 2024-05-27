@@ -237,8 +237,8 @@ class Manufacturing_Simulator:
         # TODO-Use the real surrogate model implementation
         u_bot, w_bot = 0.1*trans_actions['tx_u'], 0.1*trans_actions['tx_u']
         # Calculate the inv and inv_waste for the next time step
-        self.inv[:,:,self.t+1] = self.inv_buy[:,:,self.t]-trans_actions['tx_u'][:,:,self.t]-\
-            trans_actions['eco_u'][:,:,self.t]+u_bot
+        self.inv[:,:,self.t+1] = self.inv_buy[:,:,self.t]-trans_actions['tx_u'][:,:]-\
+            trans_actions['eco_u'][:,:]+u_bot
         #self.waste_inv[:,:,self.t+1] = (1-self.delta)*(self.waste_inv_buy[:,:,self.t]-\
         #    trans_actions['waste_tx_u'][:,:,self.t]+w_bot)
         self.waste_inv[:,:,self.t+1] = (1-self.delta)*(self.waste_inv_buy[:,:,self.t]+w_bot)
@@ -256,7 +256,8 @@ class Manufacturing_Simulator:
         """
         Get the rewards for the transformation agents
         """
-        reward = np.sum(trans_actions['econ_quantity'], axis=0)
+        ## TODO - Get the utility function for u_{c,n}^{(t), econ}
+        reward = np.sum(trans_actions['eco_u'], axis=1)
         reward -= np.sum(self.tx_p[:,:,self.t]*self.tx_u[:,:,self.t], axis=1)
         return reward
 

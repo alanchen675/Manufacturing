@@ -12,7 +12,7 @@ class PPOAgent:
     """
     Agent model for the problem
     """
-    def __init__(self, n_observations, n_actions, chkpt_dir, hidden_dims=128, lr=0.01):
+    def __init__(self, n_observations, n_actions, chkpt_dir, hidden_dims=128, lr=0.01, clip=0.2):
         self.actor = Actor(n_observations, n_actions, hidden_dims)
         self.critic = Critic(n_observations, n_actions, hidden_dims)
         self.actor_optim = optim.Adam(self.actor.parameters(), lr=lr)
@@ -20,10 +20,11 @@ class PPOAgent:
         self.cov_var = torch.full(size=(n_actions,), fill_value=0.5)
         self.cov_mat = torch.diag(self.cov_var)
         self.chkpt_dir = chkpt_dir
+        self.clip = clip
 
     def save_model(self, filename):
         if not os.path.exists(self.chkpt_dir):
-            os.mkdir(self.chkpt_dir)
+            os.makedirs(self.chkpt_dir)
         torch.save(self.actor.state_dict(), f'{self.chkpt_dir}/{filename}')
         torch.save(self.critic.state_dict(), f'{self.chkpt_dir}/{filename}')
 
@@ -152,25 +153,30 @@ class AgentPool:
         Given the state, output all kinds of quantities 
         """
         actions = []
+        conv_actions = []
         log_probs = []
         for i in range(self.num_agents):
             act, logp = self.agent_pools[agent_type][i].get_action(obs[i,:])
+            new_act = None
             if agent_type == BUYER:
                 c = self.num_commodities
                 new_act = np.zeros(self.buyer_act_dim+2*c)
                 new_act = np.insert(act, c+i*c, np.zeros(c)) 
                 new_act = np.insert(new_act, c*(self.num_agents+1+i), np.zeros(c))
-                act = new_act
             actions.append(act)
+            conv_actions.append(new_act)
             log_probs.append(logp)
 
-        return np.array(actions), np.array(log_probs)
+        return np.array(actions), np.array(log_probs), np.array(conv_actions)
 
     def evaluate(self, batch_obs, batch_acts, agent_type, agent_id):
-        return self.agent_pools[agent_type][agent_id].evaluate(batch_obs, batch_acts)
+        return self.agent_pools[agent_type][agent_id].evaluate(\
+            batch_obs[agent_type][agent_id], batch_acts[agent_type][agent_id])
 
     def learn(self, batch_obs, batch_acts, batch_logprobs, batch_rtgs, agent_type, agent_id, n_itr):
-        self.agent_pools[agent_type][agent_id].learn(batch_obs, batch_acts, batch_logprobs, batch_rtgs, n_itr) 
+        self.agent_pools[agent_type][agent_id].learn(batch_obs[agent_type][agent_id],\
+            batch_acts[agent_type][agent_id], batch_logprobs[agent_type][agent_id],\
+            batch_rtgs[agent_type][agent_id], n_itr) 
 
     def save_model(self, agent_type, agent_id, filename):
         self.agent_pools[agent_type][agent_id].save_model(filename)
