@@ -169,7 +169,6 @@ class Manufacturing_Simulator:
             if k=='spot_q':
                 continue
             buyer_actions[k] = arr.reshape(self.num_agents, self.num_agents, self.num_commodities)
-        #TODO - Action conversion for buyer
         # Update the buyer states with the buyer actions
         for key, value in buyer_actions.items():
             getattr(self, key)[..., self.t] = value

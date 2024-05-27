@@ -118,10 +118,6 @@ class Trainer:
                 batch_acts[TRANSFORM].append(action_t)
                 batch_log_probs[TRANSFORM].append(log_prob_t)
 
-                ## TODO-Check early termination condition
-                #if done:
-                #    break
-
                 # Collect episodic length and rewards
             batch_lens.append(ep_t + 1) # plus 1 because timestep starts at 0
             for stage in stages:
